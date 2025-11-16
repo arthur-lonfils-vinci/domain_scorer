@@ -1,5 +1,11 @@
+dnspython
 fastapi
 uvicorn
 requests
 python-dotenv
 python-whois
+requests
+tldextract
+FastAPI
+dnspython
+rich
