@@ -4,7 +4,7 @@
 domain:
   vendor_abuseipdb: 0.3
   vendor_phishtank: 0.3
-  vendor_urlscan: 0.3
+  vendor_urlscan: 0.1
   vendor_vt: 0.4
 
   dns_a_record: 0.1
@@ -32,5 +32,5 @@ email:
   email_spoofing: 0.4
 
   email_disposable_provider: 0.6
-  email_brand_impersonation: 0.8
-  email_cross_domain_mismatch: 0.4
+  email_brand_impersonation: 0.6
+  email_cross_domain_mismatch: 0.2
