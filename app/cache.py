@@ -1,20 +1,26 @@
-import json
-import os
-from pathlib import Path
+import threading
+from typing import Any, Optional
+from app.config import CACHE_DIR
 
-CACHE_FILE = Path("cache.json")
+try:
+    import diskcache
+    _cache = diskcache.Cache(CACHE_DIR)
+    _use_diskcache = True
+except ImportError:  # fallback
+    _cache = {}
+    _use_diskcache = False
 
-# Load existing cache or initialize empty
-if CACHE_FILE.exists():
-    with open(CACHE_FILE, "r") as f:
-        cache = json.load(f)
-else:
-    cache = {}
+_lock = threading.Lock()
 
-def get_cache(key):
-    return cache.get(key)
 
-def set_cache(key, value):
-    cache[key] = value
-    with open(CACHE_FILE, "w") as f:
-        json.dump(cache, f)
+def get_cache(key: str) -> Optional[Any]:
+    with _lock:
+        return _cache.get(key)
+
+
+def set_cache(key: str, value: Any, expire: int = 300) -> None:
+    with _lock:
+        if _use_diskcache:
+            _cache.set(key, value, expire=expire)
+        else:
+            _cache[key] = value
