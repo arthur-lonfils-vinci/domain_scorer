@@ -7,6 +7,7 @@ class PhishTankFeature(Feature):
     name = "vendor_phishtank"
     max_score = 0.1
     target_type = "domain"
+    run_on = "root"
 
     def run(self, domain: str):
         endpoint = "https://checkurl.phishtank.com/checkurl/"
@@ -24,4 +25,4 @@ class PhishTankFeature(Feature):
             return self.success(0.0, "Not in listed PhishTank")
 
         except Exception as e:  # noqa: BLE001
-            return self.error(f"PhishTank error: {e}")
+            return self.disabled(f"PhishTank error: {e}")

@@ -7,6 +7,7 @@ class URLScanFeature(Feature):
     name = "vendor_urlscan"
     max_score = 0.1
     target_type = "domain"
+    run_on = "root"
 
     def run(self, domain: str):
         if not URLSCAN_API_KEY:
@@ -26,4 +27,4 @@ class URLScanFeature(Feature):
             return self.success(score, f"URLScan results={total}")
 
         except Exception as e:  # noqa: BLE001
-            return self.error(f"URLScan error: {e}")
+            return self.disabled(f"URLScan error: {e}")

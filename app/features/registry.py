@@ -1,16 +1,23 @@
+# app/features/registry.py
 import pkgutil
 import importlib
 from typing import Dict
 from .base import Feature
 
+
 def _load_from_package(package_name: str) -> Dict[str, Feature]:
-    features: Dict[str, Feature] = {}
+    features = {}
+
     pkg = importlib.import_module(package_name)
 
-    for _, modname, is_pkg in pkgutil.iter_modules(pkg.__path__):
-        if is_pkg:
-            continue
-        module = importlib.import_module(f"{package_name}.{modname}")
+    # Recursively walk packages
+    for module_info in pkgutil.walk_packages(pkg.__path__, package_name + "."):
+        module_name = module_info.name
+
+        # Import every module, even inside subfolders
+        module = importlib.import_module(module_name)
+
+        # Extract Feature subclasses
         for attr in dir(module):
             obj = getattr(module, attr)
             if (
@@ -20,22 +27,23 @@ def _load_from_package(package_name: str) -> Dict[str, Feature]:
             ):
                 instance = obj()
                 features[instance.name] = instance
+
     return features
 
 
-# Load all features from extern + local
-_all: Dict[str, Feature] = {}
+# Load ALL domain + email features recursively
+_all = {}
 _all.update(_load_from_package("app.features.extern"))
 _all.update(_load_from_package("app.features.local"))
 
-FEATURES: Dict[str, Feature] = _all
+FEATURES = _all
 
-DOMAIN_FEATURES: Dict[str, Feature] = {
+DOMAIN_FEATURES = {
     name: f for name, f in FEATURES.items()
     if f.target_type in ("domain", "both")
 }
 
-EMAIL_FEATURES: Dict[str, Feature] = {
+EMAIL_FEATURES = {
     name: f for name, f in FEATURES.items()
     if f.target_type in ("email", "both")
 }

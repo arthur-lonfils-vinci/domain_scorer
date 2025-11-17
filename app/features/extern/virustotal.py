@@ -8,6 +8,7 @@ class VirusTotalFeature(Feature):
     name = "vendor_vt"
     max_score = 0.7
     target_type = "domain"
+    run_on = "root"
 
     def run(self, domain: str):
         cache_key = f"vt:{domain}"

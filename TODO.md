@@ -16,7 +16,7 @@
 
 # (Visual) Improve the handling of the CLI interface (loading, etc...)
 
-# (Visual) Add an HTML/CSS response mode for the our API response
+# (Visual) Add an HTML/CSS response mode for the API response
 
 # Add machine learning (maybe ?)
 -> could be useful for "phishing" type of email, or suspicious domain.

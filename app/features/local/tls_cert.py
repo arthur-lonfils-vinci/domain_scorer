@@ -8,6 +8,7 @@ class TLSCertFeature(Feature):
     name = "tls_cert"
     max_score = 0.05
     target_type = "domain"
+    run_on = "fqdn"
 
     def run(self, domain: str):
         try:

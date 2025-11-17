@@ -8,6 +8,7 @@ class LexicalEntropyFeature(Feature):
     name = "lexical_entropy"
     max_score = 0.05
     target_type = "domain"
+    run_on = "fqdn"
 
     def run(self, domain: str):
         ext = tldextract.extract(domain)

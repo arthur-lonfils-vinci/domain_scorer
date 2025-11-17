@@ -11,6 +11,10 @@ from app.analyzers.email_analyzer import analyze_email
 console = Console()
 
 
+# ----------------------------------------------------------
+# Feature -> Category mapping
+# ----------------------------------------------------------
+
 CATEGORY_MAP = {
     "vendor_": "External Vendors",
     "dns_": "DNS",
@@ -24,121 +28,124 @@ CATEGORY_MAP = {
     "robots_txt": "Web Presence",
     "favicon_hash": "Web Presence",
     "email_localpart": "Email Heuristics",
+    "email_mx_": "Email Heuristics",
+    "email_mailbox": "Email Heuristics",
+    "email_spoofing": "Email Heuristics",
 }
 
 
 def classify_feature(name: str) -> str:
-    """Return category name for a feature."""
     for prefix, category in CATEGORY_MAP.items():
         if name.startswith(prefix):
             return category
     return "Other"
 
 
-def display_result(data: dict) -> None:
-    target = data.get("target", "?")
-    target_type = data.get("type", "?")
-    score = data.get("score", 0.0)
-    threat = data.get("threat", "Unknown")
+# ----------------------------------------------------------
+# Table display for each layer
+# ----------------------------------------------------------
 
-    console.print(
-        Panel(
-            f"[bold yellow]{target_type.upper()}:[/bold yellow] {target}",
-            expand=False,
-        )
-    )
-    console.print(f"[bold green]Overall score:[/bold green] {score}")
-    console.print(f"[bold red]Threat level:[/bold red] {threat}\n")
+def display_layer(title: str, layer: dict):
+    panel = Panel(f"[bold cyan]{title}: {layer['target']}[/bold cyan]", expand=False)
+    console.print(panel)
 
-    feature_scores = data.get("feature_scores", {})
-    feature_reasons = data.get("feature_reasons", {})
+    table = Table(show_lines=True)
+    table.add_column("Feature")
+    table.add_column("Score", justify="right")
+    table.add_column("Reason", overflow="fold")
 
-    if not feature_scores:
-        console.print("[dim]No feature scores available.[/dim]")
-        return
-
-    table = Table(title="Feature Scores", show_lines=True)
-    table.add_column("Feature", style="cyan", no_wrap=True)
-    table.add_column("Score", justify="right", style="green")
-    table.add_column("Reason", style="magenta")
-
-    for name, score in feature_scores.items():
-        reason = feature_reasons.get(name, "")
-        table.add_row(name, f"{score:.3f}", reason)
+    for feat, score in layer["features"].items():
+        table.add_row(feat, f"{score:.3f}", layer["reasons"].get(feat, ""))
 
     console.print(table)
+    console.print()
 
 
-def display_explain(data: dict) -> None:
-    """Explain features grouped by categories."""
-    target = data.get("target")
-    console.print(Panel(f"[bold blue]Explanation for {target}[/bold blue]", expand=False))
+# ----------------------------------------------------------
+# Main result rendering
+# ----------------------------------------------------------
 
-    root = Tree(f"[yellow]Threat Explanation Breakdown[/yellow]")
+def display_result(data: dict):
+    console.print(
+        Panel(
+            f"[yellow bold]{data['type'].upper()}[/yellow bold]: {data['target']}",
+            expand=False
+        )
+    )
 
-    feature_scores = data.get("feature_scores", {})
-    feature_reasons = data.get("feature_reasons", {})
+    console.print(f"[green]Overall score:[/green] {data['score']}")
+    console.print(f"[red]Threat level:[/red] {data['threat']}")
+    console.print()
 
-    # Build category → nodes
-    categories = {}
-    for name in feature_scores:
-        cat = classify_feature(name)
-        categories.setdefault(cat, []).append(name)
+    layers = data.get("layers")
 
-    for category, names in sorted(categories.items()):
-        cat_tree = root.add(f"[bold green]{category}[/bold green]")
-        for name in names:
-            score = feature_scores[name]
-            reason = feature_reasons.get(name, "")
-            cat_tree.add(f"[cyan]{name}[/cyan] → [white]score={score}[/white]\n    [dim]{reason}[/dim]")
+    # Domain
+    if data["type"] == "domain":
+        display_layer("Root Domain", layers["root"])
+        display_layer("FQDN / Subdomain", layers["fqdn"])
+
+    # Email
+    elif data["type"] == "email":
+        display_layer("Email User Part", layers["user"])
+        display_layer("FQDN / Subdomain", layers["fqdn"])
+        display_layer("Root Domain", layers["root"])
+
+
+# ----------------------------------------------------------
+# Explain view
+# ----------------------------------------------------------
+
+def display_explain(data: dict):
+    layers = data["layers"]
+    root = Tree(f"[bold yellow]Explanation for {data['target']}[/bold yellow]")
+
+    for lname, layer in layers.items():
+        ln = root.add(f"[green]{lname.upper()} Layer[/green]")
+
+        for feat, score in layer["features"].items():
+            cat = classify_feature(feat)
+            node = ln.add(f"[cyan]{feat}[/cyan] — {cat}")
+            node.add(f"score={score}")
+            node.add(f"[dim]{layer['reasons'].get(feat, '')}[/dim]")
 
     console.print(root)
 
 
+# ----------------------------------------------------------
+# CLI entrypoint
+# ----------------------------------------------------------
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Threat scoring CLI (domain/email)",
-    )
+    parser = argparse.ArgumentParser(description="Threat scoring CLI")
+
+    parser.add_argument("target", help="Domain or email")
+
     parser.add_argument(
-        "target",
-        help="Domain or email to score",
-    )
-    parser.add_argument(
-        "-t",
-        "--type",
+        "-t", "--type",
         choices=["auto", "domain", "email"],
-        default="auto",
-        help="Force interpretation as domain/email or auto-detect (default: auto)",
+        default="auto"
     )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output raw JSON instead of pretty tables",
-    )
-    parser.add_argument(
-        "--explain",
-        action="store_true",
-        help="Show grouped breakdown of feature impact",
-    )
+
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--explain", action="store_true")
 
     args = parser.parse_args()
-    target = args.target
 
-    # Choose analyzer
     if args.type == "domain":
-        result = analyze_domain(target)
+        result = analyze_domain(args.target)
     elif args.type == "email":
-        result = analyze_email(target)
+        result = analyze_email(args.target)
     else:
-        result = analyze_email(target) if "@" in target else analyze_domain(target)
+        result = analyze_email(args.target) if "@" in args.target else analyze_domain(args.target)
 
-    # Output modes
     if args.json:
         console.print_json(json.dumps(result, indent=2))
-    else:
-        display_result(result)
-        if args.explain:
-            display_explain(result)
+        return
+
+    display_result(result)
+
+    if args.explain:
+        display_explain(result)
 
 
 if __name__ == "__main__":

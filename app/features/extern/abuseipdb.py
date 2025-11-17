@@ -8,6 +8,7 @@ class AbuseIPDBFeature(Feature):
     name = "vendor_abuseipdb"
     max_score = 0.1
     target_type = "domain"
+    run_on = "root"
 
     def run(self, domain: str):
         if not ABUSEIPDB_API_KEY:
@@ -39,6 +40,6 @@ class AbuseIPDBFeature(Feature):
                 score = max(score, abuse_conf / 100 * self.max_score)
                 reasons.append(f"AbuseIPDB {ip}: AbuseScore={abuse_conf}")
             except Exception as e:  # noqa: BLE001
-                reasons.append(f"AbuseIPDB {ip}: error {e}")
+                return self.disabled(f"AbuseIPDB {ip}: error {e}")
 
         return self.success(score, ";".join(reasons))

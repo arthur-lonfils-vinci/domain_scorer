@@ -1,13 +1,16 @@
-from fastapi import FastAPI, HTTPException, Query
+# app/web.py
+
+from fastapi import FastAPI, Query
 
 from app.analyzers.domain_analyzer import analyze_domain
 from app.analyzers.email_analyzer import analyze_email
 
-app = FastAPI(title="Threat Scoring API", version="1.0.0")
+app = FastAPI(
+    title="Threat Scoring API",
+    version="2.0.0",
+    description="Multi-layer threat scoring for domains and emails"
+)
 
-# ----------------------------------------------------
-# Scoring Routes
-# ----------------------------------------------------
 
 @app.get("/api/v1/score/domain/{domain}")
 def score_domain_route(domain: str):
