@@ -1,11 +1,8 @@
-# Fix Uncorrect Threat Level
--> Londer.be = "High" but is safe and legit
--> silkytravel.uk.com = "Medium" or "Low" but is actually a phishing used domain
+# Improve Threat Level (Lot of test)
 
-# Check mail verification
+# Improve mail verification (Lot of test)
 
-# Improve the returns "errors" handling
--> when having an unexpected error from an API call (http-code or other type of error), having according handling to have a logic score throughout tests
+# Improve the returns "errors" handling (Lot of test)
 
 # Add more "extern" verification services 
 -> improve the result (more data)
