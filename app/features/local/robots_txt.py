@@ -13,6 +13,6 @@ class RobotsTxtFeature(Feature):
             resp = requests.get(f"https://{domain}/robots.txt", timeout=REQUEST_TIMEOUT)
             score = self.max_score if resp.status_code != 200 else 0.0
             reason = "robots.txt missing" if score else "robots.txt found"
-            return {"score": score, "reason": reason}
+            return self.success(score, reason)
         except Exception as e:  # noqa: BLE001
-            return {"score": self.error_score(), "reason": f"robots error: {e}"}
+            return self.error(f"robots.txt error: {e}")

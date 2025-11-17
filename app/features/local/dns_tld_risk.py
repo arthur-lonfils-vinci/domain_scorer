@@ -21,8 +21,5 @@ class TLDRiskFeature(Feature):
         ext = tldextract.extract(domain)
         full_suffix = ext.suffix.lower()
         if full_suffix in SUSPICIOUS_PSEUDO_TLDS:
-            return {
-                "score": self.max_score,
-                "reason": f"Suspicious pseudo-TLD: {full_suffix}",
-            }
-        return {"score": 0.0, "reason": "TLD normal"}
+            return self.success(self.max_score, "Pseudo-TLD")
+        return self.success(0.0, "Normal TLD")

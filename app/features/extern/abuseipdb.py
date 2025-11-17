@@ -11,17 +11,14 @@ class AbuseIPDBFeature(Feature):
 
     def run(self, domain: str):
         if not ABUSEIPDB_API_KEY:
-            return {"score": 0.0, "reason": "AbuseIPDB disabled (no API key)"}
+            return self.disabled("abuseipdb - No API key provided")
 
         try:
             ips = socket.gethostbyname_ex(domain)[2]
-        except Exception:  # noqa: BLE001
-            return {
-                "score": self.error_score(),
-                "reason": "AbuseIPDB: cannot resolve domain",
-            }
+        except Exception:
+            return self.error("abuseipdb - Domain not found")
 
-        max_score = 0.0
+        score = 0.0
         reasons = []
         for ip in ips:
             try:
@@ -35,13 +32,13 @@ class AbuseIPDBFeature(Feature):
                     timeout=REQUEST_TIMEOUT,
                 )
                 if resp.status_code != 200:
-                    reasons.append(f"{ip}: HTTP {resp.status_code}")
+                    reasons.append(f"AbuseIPDB {ip}: HTTP {resp.status_code}")
                     continue
                 data = resp.json().get("data", {})
                 abuse_conf = data.get("abuseConfidenceScore", 0)
-                max_score = max(max_score, abuse_conf / 100 * self.max_score)
-                reasons.append(f"{ip}: AbuseScore={abuse_conf}")
+                score = max(score, abuse_conf / 100 * self.max_score)
+                reasons.append(f"AbuseIPDB {ip}: AbuseScore={abuse_conf}")
             except Exception as e:  # noqa: BLE001
-                reasons.append(f"{ip}: error {e}")
+                reasons.append(f"AbuseIPDB {ip}: error {e}")
 
-        return {"score": round(max_score, 3), "reason": "; ".join(reasons)}
+        return self.success(score, ";".join(reasons))

@@ -9,23 +9,21 @@ class URLScanFeature(Feature):
     target_type = "domain"
 
     def run(self, domain: str):
-        headers = {"API-Key": URLSCAN_API_KEY} if URLSCAN_API_KEY else {}
+        if not URLSCAN_API_KEY:
+            return self.disabled("URLScan - No API key provided")
+        headers = {"API-Key": URLSCAN_API_KEY, "Content-Type": "application/json"}
         try:
             resp = requests.get(
                 "https://urlscan.io/api/v1/search/",
                 params={"q": f"domain:{domain}"},
                 headers=headers,
-                timeout=REQUEST_TIMEOUT,
             )
             if resp.status_code != 200:
-                return {
-                    "score": self.error_score(),
-                    "reason": f"URLScan HTTP {resp.status_code}",
-                }
+                return self.error(f"URLScan HTTP: {resp.status_code}")
 
             total = resp.json().get("total", 0)
             score = self.max_score if total > 0 else 0.0
-            return {"score": score, "reason": f"URLScan results={total}"}
+            return self.success(score, f"URLScan results={total}")
 
         except Exception as e:  # noqa: BLE001
-            return {"score": self.error_score(), "reason": f"URLScan error: {e}"}
+            return self.error(f"URLScan error: {e}")

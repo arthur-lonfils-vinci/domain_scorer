@@ -18,6 +18,6 @@ class TLSIssuerFeature(Feature):
             issuer = dict(x[0] for x in cert.get("issuer", []))
             cn = issuer.get("commonName", "")
             # For now, no scoring on issuer name, just info.
-            return {"score": 0.0, "reason": f"Issuer={cn}"}
+            return self.success(0.0, f"TLS Issuer={cn}")
         except Exception as e:  # noqa: BLE001
-            return {"score": self.error_score(), "reason": f"TLS issuer error: {e}"}
+            return self.error(f"TLS issuer error: {e}")

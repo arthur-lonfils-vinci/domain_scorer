@@ -12,6 +12,6 @@ class DNSMXRecordFeature(Feature):
             answers = resolve_dns(domain, "MX")
             count = len(answers)
             score = self.max_score if count == 0 else 0.0
-            return {"score": score, "reason": f"MX count={count}"}
+            return self.success(score, f"DNS MX Record: {count}")
         except Exception as e:  # noqa: BLE001
-            return {"score": self.error_score(), "reason": f"MX error: {e}"}
+            return self.error(f"DNS MX error: {e}")

@@ -22,15 +22,12 @@ class EmailLocalPartFeature(Feature):
 
     def run(self, email: str):
         if "@" not in email:
-            return {"score": 0.0, "reason": "Not an email"}
+            return self.disabled("Not a valid email address - no @")
 
         local = email.split("@", 1)[0]
 
         for pattern in self.SUSPICIOUS_PATTERNS:
             if re.search(pattern, local, re.IGNORECASE):
-                return {
-                    "score": self.max_score,
-                    "reason": f"Suspicious local-part pattern: {pattern}",
-                }
+                return self.success(self.max_score, f"Suspicious local-part pattern: {pattern}")
 
-        return {"score": 0.0, "reason": "Local-part looks normal"}
+        return self.success(0.0, "Local-part looks normal")

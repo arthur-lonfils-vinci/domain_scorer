@@ -13,10 +13,10 @@ class LexicalEntropyFeature(Feature):
         ext = tldextract.extract(domain)
         name = ext.domain or ""
         if not name:
-            return {"score": 0.0, "reason": "Empty domain label"}
+            return self.error(f"No domain name: {domain}")
 
         counts = Counter(name)
         probs = [c / len(name) for c in counts.values()]
         entropy = -sum(p * math.log2(p) for p in probs)
         score = self.max_score if entropy > 4.5 else 0.0
-        return {"score": score, "reason": f"Entropy={entropy:.2f}"}
+        return self.success(score, f"Entropy={entropy:.2f}")

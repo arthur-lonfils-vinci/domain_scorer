@@ -17,6 +17,6 @@ class DNSSpfDkimFeature(Feature):
             # Missing SPF is more suspicious than missing DKIM
             score = self.max_score if not spf else 0.0
             reason = f"SPF={'yes' if spf else 'no'}, DKIM={'yes' if dkim else 'no'}"
-            return {"score": score, "reason": reason}
+            return self.success(score, reason)
         except Exception as e:  # noqa: BLE001
-            return {"score": self.error_score(), "reason": f"SPF/DKIM error: {e}"}
+            return self.error(f"DNS SPF/DKIM error: {e}")

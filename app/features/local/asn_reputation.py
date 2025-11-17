@@ -16,17 +16,14 @@ class ASNReputationFeature(Feature):
         try:
             ip = socket.gethostbyname(domain)
         except Exception as e:  # noqa: BLE001
-            return {"score": 0.0, "reason": f"ASN: cannot resolve ({e})"}
+            return self.error(f"ASN: cannot resolve ({e})")
 
         try:
             resp = requests.get(
                 f"https://api.bgpview.io/ip/{ip}", timeout=REQUEST_TIMEOUT
             )
             if resp.status_code != 200:
-                return {
-                    "score": 0.0,
-                    "reason": f"ASN lookup HTTP {resp.status_code}",
-                }
+                return self.error(f"ASN HTTP: ({resp.status_code})")
 
             data = resp.json().get("data", {})
             asn_info = data.get("asn", {})
@@ -34,10 +31,10 @@ class ASNReputationFeature(Feature):
             name = asn_info.get("name", "")
 
             if not asn:
-                return {"score": 0.0, "reason": f"ASN unknown ({name})"}
+                return self.success(0.0, f"ASN unknow {name}")
 
             score = self.max_score if str(asn) in BAD_ASNS else 0.0
-            return {"score": score, "reason": f"ASN={asn}, Name={name}"}
+            return self.success(score, f"- ASN: {asn} \n - Name: {name}")
 
         except Exception as e:  # noqa: BLE001
-            return {"score": 0.0, "reason": f"ASN error: {e}"}
+            return self.error(f"ASN: cannot resolve ({e})")

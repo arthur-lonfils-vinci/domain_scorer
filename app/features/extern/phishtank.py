@@ -9,20 +9,19 @@ class PhishTankFeature(Feature):
     target_type = "domain"
 
     def run(self, domain: str):
-        url = f"http://checkurl.staging.phishtank.com/checkurl//?url={domain}&format=json"
+        endpoint = "https://checkurl.phishtank.com/checkurl/"
         try:
-            resp = requests.get(url, timeout=REQUEST_TIMEOUT)
+            resp = requests.post(endpoint, data={"url": domain, "format": "json"})
             if resp.status_code != 200:
-                return {
-                    "score": self.error_score(),
-                    "reason": f"PhishTank HTTP {resp.status_code}",
-                }
+                if resp.status_code == 403:
+                    return self.disabled("PhishTank - Authorization Required")
+                return self.error(f"PhishTank HTTP {resp.status_code}")
 
             data = resp.json()
             if data.get("results", {}).get("valid", False):
-                return {"score": self.max_score, "reason": "Listed in PhishTank"}
+                return self.success(self.max_score, "Listed in PhishTank")
 
-            return {"score": 0.0, "reason": "Not in PhishTank DB"}
+            return self.success(0.0, "Not in listed PhishTank")
 
         except Exception as e:  # noqa: BLE001
-            return {"score": self.error_score(), "reason": f"PhishTank error: {e}"}
+            return self.error(f"PhishTank error: {e}")

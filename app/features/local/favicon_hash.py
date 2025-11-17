@@ -13,8 +13,8 @@ class FaviconHashFeature(Feature):
         try:
             resp = requests.get(f"https://{domain}/favicon.ico", timeout=REQUEST_TIMEOUT)
             if resp.status_code != 200:
-                return {"score": self.max_score, "reason": "favicon missing"}
+                return self.success(self.max_score, f"favicon missing | HTTP: {resp.status_code}")
             h = hashlib.md5(resp.content).hexdigest()
-            return {"score": 0.0, "reason": f"favicon hash={h}"}
+            return self.success(0.0, f"favicon hash={h}")
         except Exception as e:  # noqa: BLE001
-            return {"score": self.error_score(), "reason": f"favicon error: {e}"}
+            return self.error(f"favicon error: {e}")

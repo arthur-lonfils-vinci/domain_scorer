@@ -24,7 +24,7 @@ class TLSCertFeature(Feature):
             )
             validity = (not_after - not_before).days
             score = self.max_score if validity < 90 else 0.0
-            return {"score": score, "reason": f"TLS validity={validity} days"}
+            return self.success(score, f"TLS validity={validity} days")
         except Exception as e:  # noqa: BLE001
             # Some domains legitimately have no HTTPS – mild suspicion only.
-            return {"score": self.max_score * 0.5, "reason": f"TLS error: {e}"}
+            return self.error(f"TLS error: {e}")
