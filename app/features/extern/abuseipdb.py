@@ -1,14 +1,16 @@
 import socket
 import requests
 from app.features.base import Feature
-from app.config import ABUSEIPDB_API_KEY, REQUEST_TIMEOUT
+from app.config import ABUSEIPDB_API_KEY, REQUEST_TIMEOUT, get_weight
 
 
 class AbuseIPDBFeature(Feature):
     name = "vendor_abuseipdb"
-    max_score = 0.1
     target_type = "domain"
     run_on = "root"
+
+    def __init__(self):
+        self.max_score = get_weight("domain", self.name, 0.1)
 
     def run(self, domain: str):
         if not ABUSEIPDB_API_KEY:
@@ -17,7 +19,7 @@ class AbuseIPDBFeature(Feature):
         try:
             ips = socket.gethostbyname_ex(domain)[2]
         except Exception:
-            return self.error("abuseipdb - Domain not found")
+            return self.disabled("abuseipdb - Domain not found")
 
         score = 0.0
         reasons = []

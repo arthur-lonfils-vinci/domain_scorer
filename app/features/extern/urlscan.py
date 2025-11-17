@@ -1,13 +1,15 @@
 import requests
 from app.features.base import Feature
-from app.config import URLSCAN_API_KEY, REQUEST_TIMEOUT
+from app.config import URLSCAN_API_KEY, REQUEST_TIMEOUT, get_weight
 
 
 class URLScanFeature(Feature):
     name = "vendor_urlscan"
-    max_score = 0.1
     target_type = "domain"
     run_on = "root"
+
+    def __init__(self):
+        self.max_score = get_weight("domain", self.name, 0.1)
 
     def run(self, domain: str):
         if not URLSCAN_API_KEY:

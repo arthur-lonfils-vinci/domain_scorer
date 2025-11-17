@@ -1,13 +1,15 @@
 import requests
 from app.features.base import Feature
-from app.config import REQUEST_TIMEOUT
+from app.config import REQUEST_TIMEOUT, get_weight
 
 
 class RobotsTxtFeature(Feature):
     name = "robots_txt"
-    max_score = 0.05
     target_type = "domain"
     run_on = "fqdn"
+
+    def __init__(self):
+        self.max_score = get_weight("domain", self.name, 0.05)
 
     def run(self, domain: str):
         try:

@@ -1,16 +1,17 @@
 import datetime
 import requests
-from app.config import REQUEST_TIMEOUT
+from app.config import REQUEST_TIMEOUT, get_weight
 from app.features.base import Feature
 from app.cache import get_cache, set_cache
 
 
 class DomainAgeFeature(Feature):
     name = "domain_age"
-    max_score = 0.1
     target_type = "domain"
     run_on = "root"
 
+    def __init__(self):
+        self.max_score = get_weight("domain", self.name, 0.1)
 
     def rdap_lookup(self, domain: str):
         """

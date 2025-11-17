@@ -1,14 +1,18 @@
 import math
 from collections import Counter
 import tldextract
+
+from app.config import get_weight
 from app.features.base import Feature
 
 
 class LexicalEntropyFeature(Feature):
     name = "lexical_entropy"
-    max_score = 0.05
     target_type = "domain"
     run_on = "fqdn"
+
+    def __init__(self):
+        self.max_score = get_weight("domain", self.name, 0.05)
 
     def run(self, domain: str):
         ext = tldextract.extract(domain)

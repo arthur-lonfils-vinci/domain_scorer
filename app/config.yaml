@@ -1,0 +1,36 @@
+# ===============================
+#  DOMAIN-LEVEL FEATURE WEIGHTS
+# ===============================
+domain:
+  vendor_abuseipdb: 0.3
+  vendor_phishtank: 0.3
+  vendor_urlscan: 0.3
+  vendor_vt: 0.4
+
+  dns_a_record: 0.1
+  dns_mx_record: 0.05
+  dns_spf_dkim: 0.05
+  dns_tld_risk: 0.05
+  asn_reputation: 0.1
+  domain_age: 0.1
+
+  lexical_entropy: 0.1
+  robots_txt: 0.05
+  favicon_hash: 0.05
+
+  tls_cert: 0.1
+  tls_issuer: 0.1
+
+
+# ===============================
+#  EMAIL-LEVEL FEATURE WEIGHTS
+# ===============================
+email:
+  email_localpart: 0.5
+  email_mailbox: 0.1
+  email_mx_presence: 0.1
+  email_spoofing: 0.4
+
+  email_disposable_provider: 0.6
+  email_brand_impersonation: 0.8
+  email_cross_domain_mismatch: 0.4

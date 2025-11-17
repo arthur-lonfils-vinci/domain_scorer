@@ -31,6 +31,9 @@ CATEGORY_MAP = {
     "email_mx_": "Email Heuristics",
     "email_mailbox": "Email Heuristics",
     "email_spoofing": "Email Heuristics",
+    "cross_domain_mismatch": "Email Heuristics",
+    "disposable_provider": "Email Heuristics",
+    "email_brand_impersonation": "Email Heuristics"
 }
 
 
@@ -51,11 +54,20 @@ def display_layer(title: str, layer: dict):
 
     table = Table(show_lines=True)
     table.add_column("Feature")
+    table.add_column("Weight", justify="right")
     table.add_column("Score", justify="right")
     table.add_column("Reason", overflow="fold")
 
+    weights = layer.get("weights", {})
+
     for feat, score in layer["features"].items():
-        table.add_row(feat, f"{score:.3f}", layer["reasons"].get(feat, ""))
+        weight = weights.get(feat, 0.0)
+        table.add_row(
+            feat,
+            f"{weight:.3f}",  # NEW
+            f"{score:.3f}",
+            layer["reasons"].get(feat, "")
+        )
 
     console.print(table)
     console.print()

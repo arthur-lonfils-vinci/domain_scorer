@@ -1,13 +1,17 @@
 import ssl
 import socket
+
+from app.config import get_weight
 from app.features.base import Feature
 
 
 class TLSIssuerFeature(Feature):
     name = "tls_issuer"
-    max_score = 0.05
     target_type = "domain"
     run_on = "fqdn"
+
+    def __init__(self):
+        self.max_score = get_weight("domain", self.name, 0.1)
 
     def run(self, domain: str):
         try:

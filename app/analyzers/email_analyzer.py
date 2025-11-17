@@ -40,7 +40,7 @@ def analyze_email(email: str) -> Dict[str, Any]:
     # ---------------------------
     # 1) User layer
     # ---------------------------
-    email_norm, email_scores, email_reasons = score_email_only(
+    email_norm, email_scores, email_reasons, email_weights = score_email_only(
         fqdn=fqdn,
         root=root,
         user=email
@@ -51,6 +51,7 @@ def analyze_email(email: str) -> Dict[str, Any]:
         "score": email_norm,
         "features": email_scores,
         "reasons": email_reasons,
+        "weights": email_weights,
     }
 
     # ---------------------------

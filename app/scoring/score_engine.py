@@ -17,6 +17,7 @@ def _run_feature_set(
     """
     scores: Dict[str, float] = {}
     reasons: Dict[str, str] = {}
+    weights: Dict[str, float] = {}
 
     for name, feature in feature_set.items():
         try:
@@ -32,11 +33,12 @@ def _run_feature_set(
             scores[name] = float(score)
 
         reasons[name] = str(result.get("reason", ""))
+        weights[name] = getattr(feature, "max_score", 0.0)
 
     max_total = sum(f.max_score for f in feature_set.values() if f.max_score) or 1.0
     normalized = round(sum(scores.values()) / max_total, 3)
 
-    return normalized, scores, reasons
+    return normalized, scores, reasons, weights
 
 
 # ============================================================
@@ -54,8 +56,8 @@ def score_domain_layers(fqdn: str, root: str):
         if getattr(f, "run_on") == "root"
     }
 
-    fqdn_norm, fqdn_scores, fqdn_reasons = _run_feature_set(fqdn, fqdn_features)
-    root_norm, root_scores, root_reasons = _run_feature_set(root, root_features)
+    fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights = _run_feature_set(fqdn, fqdn_features)
+    root_norm, root_scores, root_reasons, root_weights = _run_feature_set(root, root_features)
 
     return {
         "fqdn": {
@@ -63,12 +65,14 @@ def score_domain_layers(fqdn: str, root: str):
             "score": fqdn_norm,
             "features": fqdn_scores,
             "reasons": fqdn_reasons,
+            "weights": fqdn_weights,
         },
         "root": {
             "target": root,
             "score": root_norm,
             "features": root_scores,
             "reasons": root_reasons,
+            "weights": root_weights,
         },
     }
 
@@ -96,10 +100,10 @@ def score_email_only(fqdn: str, root: str, user: str):
         feature_buckets[bucket][name] = feature
 
     # Run scoring
-    user_norm, user_scores, user_reasons = _run_feature_set(user, feature_buckets["user"])
-    fqdn_norm, fqdn_scores, fqdn_reasons = _run_feature_set(fqdn, feature_buckets["fqdn"])
-    root_norm, root_scores, root_reasons = _run_feature_set(root, feature_buckets["root"])
-    both_norm, both_scores, both_reasons = _run_feature_set(fqdn, feature_buckets["both"])
+    user_norm, user_scores, user_reasons, user_weights = _run_feature_set(user, feature_buckets["user"])
+    fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights= _run_feature_set(fqdn, feature_buckets["fqdn"])
+    root_norm, root_scores, root_reasons, root_weights = _run_feature_set(root, feature_buckets["root"])
+    both_norm, both_scores, both_reasons, both_weights = _run_feature_set(fqdn, feature_buckets["both"])
 
     # Merge raw scores
     scores = {}
@@ -115,9 +119,16 @@ def score_email_only(fqdn: str, root: str, user: str):
     reasons.update(root_reasons)
     reasons.update(both_reasons)
 
+    # Merge weights
+    weights = {}
+    weights.update(user_weights)
+    weights.update(fqdn_weights)
+    weights.update(root_weights)
+    weights.update(both_weights)
+
     # FINAL NORMALIZED SCORE
     max_total = sum(f.max_score for f in EMAIL_FEATURES.values() if f.max_score) or 1.0
     total_score = sum(scores.values())
     normalized = round(total_score / max_total, 3)
 
-    return normalized, scores, reasons
+    return normalized, scores, reasons, weights

@@ -20,3 +20,7 @@ def resolve_dns(domain: str, record_type: str, timeout: float = 3.0):
             last_exc = e
             continue
     raise last_exc or Exception("DNS resolution failed for all resolvers")
+
+def is_nxdomain_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "does not exist" in msg or "nxdomain" in msg or "not found" in msg

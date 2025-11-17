@@ -1,6 +1,24 @@
 import os
 from dotenv import load_dotenv
+import yaml
+from pathlib import Path
 
+CONFIG_FILE = Path(__file__).parent / "config.yaml"
+
+def load_config():
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    return {}
+
+CONFIG = load_config()
+
+def get_weight(category: str, feature_name: str, default: float = 0.0):
+    """Return weight from YAML or fallback to default."""
+    return CONFIG.get(category, {}).get(feature_name, default)
+
+
+# ENV variable
 load_dotenv()
 
 # External vendor API Keys

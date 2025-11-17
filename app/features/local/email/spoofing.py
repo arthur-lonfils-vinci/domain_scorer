@@ -1,11 +1,20 @@
 import socket
+
+import dns
+
+from app.config import get_weight
 from app.features.base import Feature
+from app.features.utils.dns.dns_utils import is_nxdomain_error
+
 
 class EmailSpoofingFeature(Feature):
     name = "email_spoofing"
     target_type = "email"
     run_on = "root"
     max_score = 0.3
+
+    def __init__(self):
+        self.max_score = get_weight("email", self.name, 0.3)
 
     def run(self, domain: str):
         reasons = []
@@ -18,7 +27,9 @@ class EmailSpoofingFeature(Feature):
             if len(mx) == 0:
                 reasons.append("Domain has NO MX")
                 score += 1
-        except Exception:
+        except Exception as e:
+            if is_nxdomain_error(e):
+                return self.error("No DNS found")
             return self.disabled("DNS MX failed → can't evaluate spoofing")
 
         # Domain not resolving? → suspicious

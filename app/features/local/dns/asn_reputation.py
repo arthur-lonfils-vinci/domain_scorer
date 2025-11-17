@@ -1,17 +1,18 @@
 import socket
 import requests
 from app.features.base import Feature
-from app.config import REQUEST_TIMEOUT
-
+from app.config import REQUEST_TIMEOUT, get_weight
 
 BAD_ASNS = {"AS9009", "AS206092", "AS20473", "AS14061"}
 
 
 class ASNReputationFeature(Feature):
     name = "asn_reputation"
-    max_score = 0.05
     target_type = "domain"
     run_on = "root"
+
+    def __init__(self):
+        self.max_score = get_weight("domain", self.name, 0.05)
 
     def run(self, domain: str):
         try:

@@ -1,14 +1,16 @@
 import requests
 from app.features.base import Feature
-from app.config import VIRUSTOTAL_API_KEY, REQUEST_TIMEOUT
+from app.config import VIRUSTOTAL_API_KEY, REQUEST_TIMEOUT, get_weight
 from app.cache import get_cache, set_cache
 
 
 class VirusTotalFeature(Feature):
     name = "vendor_vt"
-    max_score = 0.7
     target_type = "domain"
     run_on = "root"
+
+    def __init__(self):
+        self.max_score = get_weight("domain", self.name, 0.5)
 
     def run(self, domain: str):
         cache_key = f"vt:{domain}"
