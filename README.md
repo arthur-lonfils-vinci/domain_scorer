@@ -1,172 +1,251 @@
-# 🔐 Domain & Email Threat Scoring Engine
+# 🔐 Domain, Web & Email Threat Scoring Engine
 
-A modular, scalable, vendor-agnostic threat analysis engine that evaluates:
+A modular, extensible, OSINT-driven engine for evaluating the trustworthiness of:
 
-- Domains
-- Subdomains
-- Emails (with local-part heuristics)
-- DNS, TLS, WHOIS, ASN data
-- External threat Intel vendors
+* 🌍 **Domains & Subdomains**
+* 📧 **Emails** (including local-part heuristics)
+* 🕸 **Web Fingerprinting**
+* 🔎 **DNS / TLS / WHOIS / ASN**
+* 🛰 **External Threat Intelligence Vendors**
 
-The system is designed to be **extensible**, **vendor-pluggable**, and **maintainable**.
+The system is built to be:
+
+* **Modular** — every detection is a plug-and-play feature
+* **Vendor-Pluggable** — VirusTotal, PhishTank, AbuseIPDB, …
+* **Extensible** — add new heuristics with one class
+* **High-Visibility** — CLI table, JSON, API responses
+* **Scalable** — caching, multi-layer scoring, future ML support
 
 ---
 
-# 🌍 Architecture Overview
+# Architecture Overview
 
 ```
-project/
+app/
 │
-├── analyzers/           → High-level entrypoints (Domain + Email logic)
+├── analyzers/            → Orchestrate full Domain / Email analysis
 │   ├── domain_analyzer.py
 │   └── email_analyzer.py
 │
-├── scoring/             → Normalization + Threat classification
+├── scoring/              → Score normalization + threat classification
 │   ├── score_engine.py
 │   └── threat_classifier.py
 │
-├── features/            → Modular scoring features
-│   ├── base.py          → Base class for all features
-│   ├── registry.py      → Auto-loads features dynamically
+├── features/             → All pluggable scoring modules
+│   ├── base.py           → Base Feature class (scoring contract)
+│   ├── registry.py       → Auto-loads all features
+│   ├── types.py          → TargetType, RunScope, Category enums
 │   │
-│   ├── extern/          → External vendor integrations
+│   ├── extern/           → External OSINT / threat intel
 │   │   ├── virustotal.py
 │   │   ├── phishtank.py
 │   │   ├── abuseipdb.py
-│   │   └── urlscan.py
+│   │   ├── urlscan.py
+│   │   ├── ssl_ct_reputation.py
+│   │   └── ip_hosting_risk.py
 │   │
-│   └── local/           → Local scoring mechanisms
-│       ├── dns_*        → DNS-based analysis
-│       ├── tls_*        → TLS checks
-│       ├── domain_age.py
-│       ├── lexical_entropy.py
-│       ├── favicon_hash.py
-│       ├── robots_txt.py
-│       └── email_localpart.py
+│   └── local/            → Local analytical features
+│       ├── dns/          → DNS / WHOIS / PTR / TLD / MX…
+│       ├── email/        → Local-part, headers, impersonation…
+│       └── web/          → robots.txt, favicon, fingerprinting
 │
-├── web.py               → FastAPI service
-├── cli.py               → Terminal interface
-├── cache.py             → Cache library
-├── config.py            → API keys & constants
-└── README.md
+├── web.py                → FastAPI application
+├── cli.py                → Rich-powered CLI interface
+├── cache.py              → Caching engine (persistent)
+├── config.yaml           → Feature weights (per category)
+└── config.py             → Config loader & API keys
 ```
 
 ---
 
 # 🧠 How the Engine Works
 
-## 1. The Analyzer Layer
+The system evaluates a target using **multi-layer scoring**:
 
-### Domain Analyzer
-`domain_analyzer.py` orchestrates domain evaluation:
+### 1️⃣ Feature Engine
 
-- Runs **all domain features**
-- Normalizes their scores
-- Classifies threat level
-- Returns a fully structured result
+Every detection module returns:
 
-### Email Analyzer
-`email_analyzer.py` extends domain analysis:
+```python
+{
+  "score": float | None,   # None = unavailable / disabled
+  "reason": str,
+  "ok": bool               # True = success, False = suspicious or unavailable
+}
+```
 
-- Extracts local-part and domain
-- Runs domain analysis
-- Runs email-only features
-- Detects spoofing (MX, DNS, mailbox existence)
-- Applies email-specific threat rules
+Each feature has:
+
+* **TargetType** → `domain`, `email`, `web`
+* **RunScope** → `root`, `fqdn`, `user`
+* **Weight** loaded from `config.yaml`
+
+### 2️⃣ Scoring Engine
+
+`score_engine.py`:
+
+* Aggregates domain/user/web feature scores
+* Normalizes using per-feature max weight
+* Tracks explanations, reasons, and raw values
+
+### 3️⃣ Threat Classification
+
+`threat_classifier.py`:
+
+* Domain behavioral classification
+* Email spoofing/logical anomalies
+* Vendor overrides (VirusTotal, PhishTank, …)
+* Multi-layer correlations (local part + domain risk, etc.)
 
 ---
 
-# ⚙️ The Feature System
+# 🧩 The Feature System
 
-Every feature is a class inheriting from:
+### Base class
 
-```py
+```python
 class Feature:
-    name = "my_feature"
-    max_score = 0.1
-    target_type = "domain"  # or "email" or "both"
+    name = "example"
+    max_score = 0.2
+    target_type = TargetType.DOMAIN
+    run_on = RunScope.FQDN
+    category = Category.DNS
 
-    def run(self, target: str) -> dict:
-        return {"score": 0.05, "reason": "some explanation"}
+    def run(self, target: str):
+        ...
 ```
 
-## Automatic Registration
+### Automatic Discovery
 
-`features/registry.py` discovers all feature classes in:
+Every file in:
 
-- `features/local/`
-- `features/extern/`
+```
+features/local/**/*
+features/extern/**/*
+```
 
-No need to manually register.
+is scanned automatically.
+No manual registry.
 
-### Adding a New Feature
+### Adding a feature
 
-1. Create a file under `features/local/` or `features/extern/`
-2. Define a class extending `Feature`
-3. Done — the system loads it automatically
+1. Create a file under `features/local/xyz.py`
+2. Create a class inheriting from `Feature`
+3. Set:
+
+   * `name`
+   * `max_score` (or load from config)
+   * `target_type`
+   * `run_on`
+4. The system loads it automatically.
 
 ---
 
-# 📊 Scoring Process
+# ✨ Implemented Features
 
-1. Each feature returns:
-   - **score** (0 → max_score)
-   - **reason**
-2. Score Engine (`score_engine.py`):
-   - Sums all feature scores
-   - Normalizes them to 0–1
-3. Threat Classifier (`threat_classifier.py`):
-   - Applies rules based on:
-     - vendor signals
-     - MX/SPF
-     - local-part patterns
-     - ASN risks
-     - high scoring combinations
+### 🔍 DNS & WHOIS
+
+* A record presence
+* MX presence
+* SPF/DKIM analysis
+* Domain age
+* TLD reputation
+* WHOIS privacy check
+* Reverse PTR check *(new)*
+* Auth alignment *(SPF, DKIM, MX)*
+
+### 🛡 External Vendors
+
+* VirusTotal
+* URLScan
+* AbuseIPDB
+* PhishTank
+* SSL CT logs reputation *(new)*
+* IP hosting risk *(new)*
+
+### 📧 Email Heuristics
+
+* Local-part entropy & digit ratio
+* Mailbox existence
+* MX-based spoofing
+* Disposable provider detection
+* Brand impersonation
+* Cross-domain mismatch
+* Email headers deep analysis *(new)*
+
+### 🌐 Web Indicators
+
+* robots.txt
+* favicon fingerprint
+* Website fingerprint *(new)*
 
 ---
 
-# 🖥 CLI Usage
+# 🔮 Upcoming Features (already drafted)
 
-## Basic
+These are present in code structure and config but still under implementation:
+
+| Feature                 | File                 | Description                         |
+| ----------------------- | -------------------- | ----------------------------------- |
+| Typosquatting detection | domain_typosquat.py  | Homoglyph / swap / OCR confusion    |
+| Extended TLD Risk       | tld_risk_extended.py | Free ccTLD abuse + new risky gTLDs  |
+| CT Reputation           | ssl_ct_reputation.py | Fresh certs, LE abuse, CT clusters  |
+| Hosting Abuse           | ip_hosting_risk.py   | Bulletproof hosts, VPN nodes        |
+| Domain Privacy          | domain_privacy.py    | WHOIS privacy on new domains        |
+| Email Headers           | email_headers.py     | Hop-chain anomalies, forged mailers |
+
+---
+
+# ⚙️ CLI Usage
+
+### Basic
+
 ```sh
-python cli.py example.com
+python -m app.cli example.com
 ```
 
-## Force Type
+### Force analysis mode
+
 ```sh
-python cli.py john@weird.com --type email
-python cli.py google.com --type domain
+python -m app.cli target@example.com --type email
+python -m app.cli domain.com --type domain
 ```
 
-## JSON output
+### Provide email headers
+
 ```sh
-python cli.py domain.com --json
+python -m app.cli target@example.com --header mail_headers.txt
 ```
 
-## Explanation Mode (grouped features)
+### JSON output
+
 ```sh
-python cli.py target --explain
+python -m app.cli domain.com --json
 ```
 
-This shows a tree:
+### Explanation mode
+
+```sh
+python -m app.cli target --explain
+```
+
+Shows a tree-structured explanation:
 
 ```
-Threat Explanation Breakdown
-└── External Vendors
-    ├── vendor_vt → score=0.000
-    └── vendor_urlscan → score=0.100
-└── DNS
-    └── mx_record → score=0.050
+Root Domain Layer
+  ├── dns_a_record         → score=0.100
+  ├── vendor_vt            → score=0.300
+  └── reverse_ptr_check    → score=0.250
 ```
 
 ---
 
 # 🌐 API Usage
 
-Run server:
+Start server:
 
 ```sh
-uvicorn web:app --reload
+uvicorn app.web:app --reload
 ```
 
 Endpoints:
@@ -174,59 +253,95 @@ Endpoints:
 ```
 /score/domain/{domain}
 /score/email/{email}
-/score?identifier={domain_or_email}
+/score?identifier=
 ```
 
-Returns structured JSON.
+Returns structured JSON with:
+
+* scores
+* reasons
+* weights
+* layers
+* threat level
+* vendor intelligence
 
 ---
 
-# 🛡 Threat Classification
+# 🧩 Configuration System
 
-Threat level is computed after scoring:
+All feature weights live in `config.yaml`, organized per **category**:
 
-- **Low** → domain/email looks legitimate  
-- **Medium** → caution (entropy, suspicious TLD, weak signals)  
-- **High** → vendor threat intel hit, missing DNS, spoofing indicators, malformed local-part  
+```yaml
+domain:
+  dns_a_record: 0.1
+  mx_reputation: 0.3
+  reverse_ptr_check: 0.25
+
+email:
+  email_headers: 0.7
+  email_localpart: 0.5
+
+web:
+  domain_web_fingerprint: 0.4
+```
+
+Weights load automatically at startup.
 
 ---
 
-# 📦 Caching
+# 🧰 Caching Engine
 
-The system caches:
+* Persistent caching via `.cache/cache.db`
+* Automatic caching of:
 
-- DNS / WHOIS
-- Vendor API responses
-- Full email results
-
-Backends:
-
-- `diskcache` (automatic)
-- fallback in-memory Python dict
+  * DNS
+  * WHOIS
+  * Vendor API calls
+  * Full domain/email results
+* Reduces vendor cost & latency
 
 ---
 
 # 🚀 Extending the Engine
 
-To add new features:
+To add your own module:
 
-1. Create a Python file in:
-   - `features/local/` (no API)
-   - `features/extern/` (API-based)
+1. Create a new file in
+   `app/features/local/...`
+   or
+   `app/features/extern/...`
 
-2. Declare a Feature subclass.
+2. Add a Feature subclass
 
-3. It is auto-detected on the next run.
+3. Choose:
 
-The engine is designed to scale smoothly.
+   * `target_type`
+   * `run_on`
+   * weight in `config.yaml`
+
+4. Done — auto-loaded.
 
 ---
 
-# ✔ Project Goals Achieved
+# 🎯 Project Goals
 
-- Modular feature-driven architecture  
-- Clean analyzers separating Domain/Email  
-- Weighted scoring for every feature  
-- Threat classification with human explanations  
-- CLI & Web interface built on same backend  
-- Extensible + scalable
+* Modular scoring engine
+* Domain, email & web analytics
+* Typed feature system (TargetType, RunScope, Category)
+* Human-readable CLI output
+* API-ready JSON
+* Extensible threat heuristics
+* Vendor-pluggable OSINT
+* ML-ready architecture
+
+---
+
+# 🧱 Future Roadmap
+
+* Local Redis / SQLite persistent intelligence DB
+* HTML reporting mode (API & CLI)
+* Interactive CLI
+* ML-assisted phishing scoring (optional mode)
+* Threat cluster correlation
+* Vector DB (embeddings) for similarity search
+
