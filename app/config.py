@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import yaml
 from pathlib import Path
+from app.features.types import ConfigCat
 
 CONFIG_FILE = Path(__file__).parent / "config.yaml"
 
@@ -13,9 +14,9 @@ def load_config():
 
 CONFIG = load_config()
 
-def get_weight(category: str, feature_name: str, default: float = 0.0):
+def get_weight(config_category: ConfigCat, feature_name: str, default: float = 0.0):
     """Return weight from YAML or fallback to default."""
-    return CONFIG.get(category, {}).get(feature_name, default)
+    return CONFIG.get(config_category, {}).get(feature_name, default)
 
 
 # ENV variable

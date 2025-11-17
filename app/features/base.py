@@ -1,4 +1,6 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
+
+from app.features.types import TargetType, RunScope, Category
 
 
 class Feature:
@@ -8,14 +10,16 @@ class Feature:
     Attributes:
         name:        unique identifier for output
         max_score:   maximum contribution to global score
-        target_type: "domain", "email", or "both"
-        run_on:      "fqdn", "root", "user",or "both" (scope of analysis)
+        target_type: "domain", "email", or "web"
+        run_on:      "fqdn", "root" or "user" (scope of analysis)
+        category:  "other", "DNS", "email", ...
     """
 
     name = "base"
     max_score = 0.0
-    target_type = "domain"        # domain | email | both
-    run_on = "fqdn"               # fqdn | root | user | both
+    target_type: List[TargetType] = [TargetType.DOMAIN]
+    run_on: List[RunScope] = [RunScope.FQDN]
+    category: Category = Category.OTHER
 
     # -------------------------------------------------------
     # Output helpers — standardized scoring conventions

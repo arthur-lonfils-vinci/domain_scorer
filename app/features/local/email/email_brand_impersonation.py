@@ -1,12 +1,17 @@
+from typing import List
+
 from app.config import get_weight
 from app.features.base import Feature
 import re
 
+from app.features.types import RunScope, TargetType, Category, ConfigCat
+
 
 class EmailImpersonationFeature(Feature):
     name = "email_brand_impersonation"
-    target_type = "email"
-    run_on = "user"  # Analyze entire email
+    target_type: List[TargetType] = [TargetType.EMAIL]
+    run_on: List[RunScope] = [RunScope.USER]
+    category: Category = Category.HEURISTICS
 
     BRANDS = [
         "paypal", "apple", "google", "microsoft", "dropbox",
@@ -14,7 +19,7 @@ class EmailImpersonationFeature(Feature):
     ]
 
     def __init__(self):
-        self.max_score = get_weight("email", self.name, 0.8)
+        self.max_score = get_weight(ConfigCat.EMAIL, self.name, 0.8)
 
     def run(self, email: str):
         local, domain = email.split("@", 1)

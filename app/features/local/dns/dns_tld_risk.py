@@ -1,7 +1,10 @@
+from typing import List
+
 import tldextract
 
 from app.config import get_weight
 from app.features.base import Feature
+from app.features.types import TargetType, RunScope, Category, ConfigCat
 
 SUSPICIOUS_PSEUDO_TLDS = {
     "uk.com",
@@ -16,11 +19,12 @@ SUSPICIOUS_PSEUDO_TLDS = {
 
 class TLDRiskFeature(Feature):
     name = "dns_tld_risk"
-    target_type = "domain"
-    run_on = "root"
+    target_type: List[TargetType] = [TargetType.DOMAIN]
+    run_on: List[RunScope] = [RunScope.ROOT]
+    category: Category = Category.DNS
 
     def __init__(self):
-        self.max_score = get_weight("domain", self.name, 0.2)
+        self.max_score = get_weight(ConfigCat.DOMAIN, self.name, 0.2)
 
     def run(self, domain: str):
         ext = tldextract.extract(domain)

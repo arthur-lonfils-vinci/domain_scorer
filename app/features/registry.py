@@ -1,8 +1,8 @@
-# app/features/registry.py
 import pkgutil
 import importlib
 from typing import Dict
 from .base import Feature
+from .types import TargetType
 
 
 def _load_from_package(package_name: str) -> Dict[str, Feature]:
@@ -40,10 +40,15 @@ FEATURES = _all
 
 DOMAIN_FEATURES = {
     name: f for name, f in FEATURES.items()
-    if f.target_type in ("domain", "both")
+    if TargetType.DOMAIN in f.target_type
 }
 
 EMAIL_FEATURES = {
     name: f for name, f in FEATURES.items()
-    if f.target_type in ("email", "both")
+    if TargetType.EMAIL in f.target_type
+}
+
+WEB_FEATURES = {
+    name: f for name, f in FEATURES.items()
+    if TargetType.WEB in f.target_type
 }

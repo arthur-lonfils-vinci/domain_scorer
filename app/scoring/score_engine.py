@@ -1,6 +1,7 @@
 from typing import Dict
 from app.features.registry import DOMAIN_FEATURES, EMAIL_FEATURES
 from app.features.base import Feature
+from app.features.types import RunScope
 
 
 # ============================================================
@@ -48,12 +49,12 @@ def _run_feature_set(
 def score_domain_layers(fqdn: str, root: str):
     fqdn_features = {
         name: f for name, f in DOMAIN_FEATURES.items()
-        if getattr(f, "run_on") in ("fqdn", "both")
+        if "fqdn" in f.run_on
     }
 
     root_features = {
         name: f for name, f in DOMAIN_FEATURES.items()
-        if getattr(f, "run_on") == "root"
+        if "root" in f.run_on
     }
 
     fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights = _run_feature_set(fqdn, fqdn_features)
@@ -90,41 +91,36 @@ def score_email_only(fqdn: str, root: str, user: str):
         "user": {},
         "fqdn": {},
         "root": {},
-        "both": {},
     }
 
     # Classify features by run_on
     for name, feature in EMAIL_FEATURES.items():
-        bucket = getattr(feature, "run_on", "user")
-        feature_buckets.setdefault(bucket, {})
-        feature_buckets[bucket][name] = feature
+        for scope in feature.run_on:
+            if scope in feature_buckets:
+                feature_buckets[scope][name] = feature
 
     # Run scoring
-    user_norm, user_scores, user_reasons, user_weights = _run_feature_set(user, feature_buckets["user"])
-    fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights= _run_feature_set(fqdn, feature_buckets["fqdn"])
-    root_norm, root_scores, root_reasons, root_weights = _run_feature_set(root, feature_buckets["root"])
-    both_norm, both_scores, both_reasons, both_weights = _run_feature_set(fqdn, feature_buckets["both"])
+    user_norm, user_scores, user_reasons, user_weights = _run_feature_set(user, feature_buckets[RunScope.USER])
+    fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights= _run_feature_set(fqdn, feature_buckets[RunScope.FQDN])
+    root_norm, root_scores, root_reasons, root_weights = _run_feature_set(root, feature_buckets[RunScope.ROOT])
 
     # Merge raw scores
     scores = {}
     scores.update(user_scores)
     scores.update(fqdn_scores)
     scores.update(root_scores)
-    scores.update(both_scores)
 
     # Merge reasons
     reasons = {}
     reasons.update(user_reasons)
     reasons.update(fqdn_reasons)
     reasons.update(root_reasons)
-    reasons.update(both_reasons)
 
     # Merge weights
     weights = {}
     weights.update(user_weights)
     weights.update(fqdn_weights)
     weights.update(root_weights)
-    weights.update(both_weights)
 
     # FINAL NORMALIZED SCORE
     max_total = sum(f.max_score for f in EMAIL_FEATURES.values() if f.max_score) or 1.0

@@ -7,42 +7,9 @@ from rich.tree import Tree
 
 from app.analyzers.domain_analyzer import analyze_domain
 from app.analyzers.email_analyzer import analyze_email
+from app.features.registry import FEATURES
 
 console = Console()
-
-
-# ----------------------------------------------------------
-# Feature -> Category mapping
-# ----------------------------------------------------------
-
-CATEGORY_MAP = {
-    "vendor_": "External Vendors",
-    "dns_": "DNS",
-    "spf_dkim": "DNS",
-    "mx_record": "DNS",
-    "tld_risk": "DNS",
-    "tls_": "TLS",
-    "domain_age": "WHOIS",
-    "lexical_entropy": "Heuristics",
-    "asn_reputation": "Network / ASN",
-    "robots_txt": "Web Presence",
-    "favicon_hash": "Web Presence",
-    "email_localpart": "Email Heuristics",
-    "email_mx_": "Email Heuristics",
-    "email_mailbox": "Email Heuristics",
-    "email_spoofing": "Email Heuristics",
-    "cross_domain_mismatch": "Email Heuristics",
-    "disposable_provider": "Email Heuristics",
-    "email_brand_impersonation": "Email Heuristics"
-}
-
-
-def classify_feature(name: str) -> str:
-    for prefix, category in CATEGORY_MAP.items():
-        if name.startswith(prefix):
-            return category
-    return "Other"
-
 
 # ----------------------------------------------------------
 # Table display for each layer
@@ -115,8 +82,8 @@ def display_explain(data: dict):
         ln = root.add(f"[green]{lname.upper()} Layer[/green]")
 
         for feat, score in layer["features"].items():
-            cat = classify_feature(feat)
-            node = ln.add(f"[cyan]{feat}[/cyan] — {cat}")
+            category = FEATURES[feat].category.value
+            node = ln.add(f"[cyan]{feat}[/cyan] — {category}")
             node.add(f"score={score}")
             node.add(f"[dim]{layer['reasons'].get(feat, '')}[/dim]")
 

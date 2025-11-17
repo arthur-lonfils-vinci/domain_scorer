@@ -2,6 +2,7 @@ import re
 from typing import Dict, Any, Tuple
 
 from app.analyzers.domain_analyzer import extract_domains, analyze_domain
+from app.features.types import RunScope
 from app.scoring.score_engine import score_email_only
 from app.scoring.threat_classifier import classify_email_score
 
@@ -59,8 +60,8 @@ def analyze_email(email: str) -> Dict[str, Any]:
     # ---------------------------
     domain_layers = analyze_domain(domain)["layers"]
 
-    root_score = domain_layers["root"]["score"]
-    fqdn_score = domain_layers["fqdn"]["score"]
+    root_score = domain_layers[RunScope.ROOT]["score"]
+    fqdn_score = domain_layers[RunScope.FQDN]["score"]
 
     # ---------------------------
     # FINAL NORMALIZED SCORE

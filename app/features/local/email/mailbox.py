@@ -1,16 +1,20 @@
+from typing import List
+
 import dns.resolver
 
 from app.config import get_weight
 from app.features.base import Feature
+from app.features.types import TargetType, RunScope, Category, ConfigCat
 from app.features.utils.dns.dns_utils import resolve_dns, is_nxdomain_error
 
 class EmailMailboxFeature(Feature):
     name = "email_mailbox"
-    target_type = "email"
-    run_on = "user"
+    target_type: List[TargetType] = [TargetType.EMAIL]
+    run_on: List[RunScope] = [RunScope.USER]
+    category: Category = Category.EMAIL
 
     def __init__(self):
-        self.max_score = get_weight("email", self.name, 0.15)
+        self.max_score = get_weight(ConfigCat.EMAIL, self.name, 0.15)
 
     def run(self, email: str):
         try:

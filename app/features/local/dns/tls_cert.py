@@ -1,18 +1,21 @@
 import ssl
 import socket
 import datetime
+from typing import List
 
 from app.config import get_weight
 from app.features.base import Feature
+from app.features.types import TargetType, RunScope, Category, ConfigCat
 
 
 class TLSCertFeature(Feature):
     name = "tls_cert"
-    target_type = "domain"
-    run_on = "fqdn"
+    target_type: List[TargetType] = [TargetType.DOMAIN]
+    run_on: List[RunScope] = [RunScope.FQDN]
+    category: Category = Category.TLS
 
     def __init__(self):
-        self.max_score = get_weight("domain", self.name, 0.1)
+        self.max_score = get_weight(ConfigCat.DOMAIN, self.name, 0.1)
 
     def run(self, domain: str):
         try:

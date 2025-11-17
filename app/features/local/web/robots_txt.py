@@ -1,15 +1,19 @@
+from typing import List
+
 import requests
 from app.features.base import Feature
 from app.config import REQUEST_TIMEOUT, get_weight
+from app.features.types import Category, TargetType, RunScope, ConfigCat
 
 
 class RobotsTxtFeature(Feature):
     name = "robots_txt"
-    target_type = "domain"
-    run_on = "fqdn"
+    target_type: List[TargetType] = [TargetType.WEB]
+    run_on: List[RunScope] = [RunScope.FQDN]
+    category: Category = Category.WEB
 
     def __init__(self):
-        self.max_score = get_weight("domain", self.name, 0.05)
+        self.max_score = get_weight(ConfigCat.WEB, self.name, 0.05)
 
     def run(self, domain: str):
         try:

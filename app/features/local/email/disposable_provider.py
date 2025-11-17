@@ -1,11 +1,15 @@
+from typing import List
+
 from app.config import get_weight
 from app.features.base import Feature
+from app.features.types import RunScope, TargetType, Category, ConfigCat
 
 
 class DisposableEmailProvider(Feature):
     name = "email_disposable_provider"
-    target_type = "email"
-    run_on = "root"   # run on the domain part
+    target_type: List[TargetType] = [TargetType.EMAIL]
+    run_on: List[RunScope] = [RunScope.ROOT]
+    category: Category = Category.HEURISTICS
 
     DISPOSABLE_DOMAINS = {
         "10minutemail.com",
@@ -20,7 +24,7 @@ class DisposableEmailProvider(Feature):
     }
 
     def __init__(self):
-        self.max_score = get_weight("email", self.name, 0.6)
+        self.max_score = get_weight(ConfigCat.EMAIL, self.name, 0.6)
 
     def run(self, root: str):
         root_lower = root.lower()

@@ -1,20 +1,22 @@
 import socket
+from typing import List
 
 import dns
 
 from app.config import get_weight
 from app.features.base import Feature
+from app.features.types import TargetType, RunScope, Category, ConfigCat
 from app.features.utils.dns.dns_utils import is_nxdomain_error
 
 
 class EmailSpoofingFeature(Feature):
     name = "email_spoofing"
-    target_type = "email"
-    run_on = "root"
-    max_score = 0.3
+    target_type: List[TargetType] = [TargetType.EMAIL]
+    run_on: List[RunScope] = [RunScope.ROOT]
+    category: Category = Category.EMAIL
 
     def __init__(self):
-        self.max_score = get_weight("email", self.name, 0.3)
+        self.max_score = get_weight(ConfigCat.EMAIL, self.name, 0.3)
 
     def run(self, domain: str):
         reasons = []

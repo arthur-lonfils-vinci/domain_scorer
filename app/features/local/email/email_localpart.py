@@ -1,7 +1,8 @@
+from typing import List
 import unicodedata
-
 from app.config import get_weight
 from app.features.base import Feature
+from app.features.types import TargetType, RunScope, Category, ConfigCat
 
 
 class EmailLocalPartFeature(Feature):
@@ -15,8 +16,9 @@ class EmailLocalPartFeature(Feature):
     """
 
     name = "email_localpart"
-    target_type = "email"
-    run_on = "user"
+    target_type: List[TargetType] = [TargetType.EMAIL]
+    run_on: List[RunScope] = [RunScope.USER]
+    category: Category = Category.EMAIL
 
     # ---------------------------------------------------------
     # Pattern databases
@@ -44,7 +46,7 @@ class EmailLocalPartFeature(Feature):
     # ---------------------------------------------------------
 
     def __init__(self):
-        self.max_score = get_weight("email", self.name, 1.0)
+        self.max_score = get_weight(ConfigCat.EMAIL, self.name, 1.0)
 
     def _has_hidden_unicode(self, s: str) -> bool:
         """Detect invisible unicode characters."""

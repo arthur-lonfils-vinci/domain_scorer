@@ -1,18 +1,22 @@
 import math
 from collections import Counter
+from typing import List
+
 import tldextract
 
 from app.config import get_weight
 from app.features.base import Feature
+from app.features.types import RunScope, TargetType, Category, ConfigCat
 
 
 class LexicalEntropyFeature(Feature):
     name = "lexical_entropy"
-    target_type = "domain"
-    run_on = "fqdn"
+    target_type: List[TargetType] = [TargetType.DOMAIN]
+    run_on: List[RunScope] = [RunScope.FQDN]
+    category: Category = Category.DNS
 
     def __init__(self):
-        self.max_score = get_weight("domain", self.name, 0.05)
+        self.max_score = get_weight(ConfigCat.DOMAIN, self.name, 0.05)
 
     def run(self, domain: str):
         ext = tldextract.extract(domain)

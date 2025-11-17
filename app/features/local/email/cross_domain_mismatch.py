@@ -1,14 +1,18 @@
+from typing import List
+
 from app.config import get_weight
 from app.features.base import Feature
+from app.features.types import TargetType, RunScope, Category, ConfigCat
 
 
 class CrossDomainMismatch(Feature):
     name = "email_cross_domain_mismatch"
-    target_type = "email"
-    run_on = "user"
+    target_type: List[TargetType] = [TargetType.EMAIL]
+    run_on: List[RunScope] = [RunScope.USER]
+    category: Category = Category.HEURISTICS
 
     def __init__(self):
-        self.max_score = get_weight("email", self.name, 0.4)
+        self.max_score = get_weight(ConfigCat.EMAIL, self.name, 0.4)
 
     def run(self, email: str):
         local, domain = email.split("@", 1)

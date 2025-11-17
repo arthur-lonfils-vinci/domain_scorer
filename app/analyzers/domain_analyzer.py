@@ -1,6 +1,7 @@
 from typing import Dict, Any
 import tldextract
 
+from app.features.types import RunScope
 from app.scoring.score_engine import score_domain_layers
 from app.scoring.threat_classifier import classify_domain_score
 
@@ -19,8 +20,8 @@ def analyze_domain(domain: str) -> Dict[str, Any]:
 
     # Final score is ROOT + attenuated FQDN (subdomain is less relevant)
     final_score = round(
-        layers["root"]["score"] * 1.0 +
-        layers["fqdn"]["score"] * 0.4,  # subdomains matter less
+        layers[RunScope.ROOT]["score"] * 1.0 +
+        layers[RunScope.FQDN]["score"] * 0.4,  # subdomains matter less
         3
     )
 
