@@ -16,12 +16,19 @@ def extract_domains(domain: str):
 def analyze_domain(domain: str) -> Dict[str, Any]:
     fqdn, root = extract_domains(domain)
 
-    layers = score_domain_layers(fqdn, root)
+    context = {
+        "mode": "domain",
+        "domain": domain,
+        "fqdn": fqdn,
+        "root": root
+    }
+
+    layers = score_domain_layers(fqdn, root, context)
 
     # Final score is ROOT + attenuated FQDN (subdomain is less relevant)
     final_score = round(
-        layers[RunScope.ROOT]["score"] * 1.0 +
-        layers[RunScope.FQDN]["score"] * 0.4,  # subdomains matter less
+        layers["root"]["score"] * 1.0 +
+        layers["fqdn"]["score"] * 0.5,
         3
     )
 

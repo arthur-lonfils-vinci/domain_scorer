@@ -20,10 +20,3 @@ def score_domain_route(domain: str):
 @app.get("/api/v1/score/email/{email}")
 def score_email_route(email: str):
     return analyze_email(email)
-
-
-@app.get("/api/v1/score")
-def score_auto(identifier: str = Query(..., description="Domain or email")):
-    if "@" in identifier:
-        return analyze_email(identifier)
-    return analyze_domain(identifier)

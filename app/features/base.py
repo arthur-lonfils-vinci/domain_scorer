@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from app.features.types import TargetType, RunScope, Category
 
@@ -57,12 +57,17 @@ class Feature:
 
     # -------------------------------------------------------
 
-    def run(self, target: str) -> Dict[str, Any]:
+    def run(self, target: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Must be implemented by child classes.
-        Should return one of:
-            self.success(...)
-            self.error(...)
-            self.disabled(...)
+        MUST be overridden by each feature.
+
+        context = {
+            "headers_path": "...",
+            "raw_headers": "...",
+            "raw_email": "...",
+            "mode": "cli" | "api",
+            "domain": ...,
+            ...
+        }
         """
         raise NotImplementedError()

@@ -3,7 +3,7 @@ from typing import Dict, Any, Tuple
 
 from app.analyzers.domain_analyzer import extract_domains, analyze_domain
 from app.features.types import RunScope
-from app.scoring.score_engine import score_email_only
+from app.scoring.score_engine import score_email_only, score_domain_layers
 from app.scoring.threat_classifier import classify_email_score
 
 from app.cache import get_cache, set_cache
@@ -18,7 +18,7 @@ def parse_email(email: str) -> Tuple[str, str]:
 # ----------------------------------------------------------------------
 # 3-layer EMAIL ANALYSIS
 # ----------------------------------------------------------------------
-def analyze_email(email: str) -> Dict[str, Any]:
+def analyze_email(email: str, headers_path: str = None, raw_headers: str = None) -> Dict[str, Any]:
     cache_key = f"email:{email}"
     if cached := get_cache(cache_key):
         return cached
@@ -38,13 +38,25 @@ def analyze_email(email: str) -> Dict[str, Any]:
     local, domain = parse_email(email)
     fqdn, root = extract_domains(domain)
 
+    context = {
+        "mode": "email",
+        "target": email,
+        "headers_path": headers_path,
+        "raw_headers": raw_headers,
+        "local_part": local,
+        "domain": domain,
+        "fqdn": fqdn,
+        "root": root
+    }
+
     # ---------------------------
     # 1) User layer
     # ---------------------------
     email_norm, email_scores, email_reasons, email_weights = score_email_only(
         fqdn=fqdn,
         root=root,
-        user=email
+        user=email,
+        context=context
     )
 
     user_layer = {
@@ -58,7 +70,7 @@ def analyze_email(email: str) -> Dict[str, Any]:
     # ---------------------------
     # 2) Domain layers
     # ---------------------------
-    domain_layers = analyze_domain(domain)["layers"]
+    domain_layers = score_domain_layers(fqdn, root, context)
 
     root_score = domain_layers[RunScope.ROOT]["score"]
     fqdn_score = domain_layers[RunScope.FQDN]["score"]

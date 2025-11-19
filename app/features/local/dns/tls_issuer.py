@@ -8,6 +8,13 @@ from app.features.types import TargetType, RunScope, Category, ConfigCat
 
 
 class TLSIssuerFeature(Feature):
+    """
+    Extract the TLS certificate issuer CN.
+
+    ⚠ No scoring is applied here.
+      This feature exists ONLY to provide context in reports.
+    """
+
     name = "tls_issuer"
     target_type: List[TargetType] = [TargetType.DOMAIN]
     run_on: List[RunScope] = [RunScope.FQDN]
@@ -16,16 +23,29 @@ class TLSIssuerFeature(Feature):
     def __init__(self):
         self.max_score = get_weight(ConfigCat.DOMAIN, self.name, 0.1)
 
-    def run(self, domain: str):
+    # ---------------------------------------------------------
+
+    def run(self, fqdn: str, context: dict):
+        # Attempt TLS handshake (safe wrapper)
         try:
             ctx = ssl.create_default_context()
-            with socket.create_connection((domain, 443), timeout=3) as sock:
-                with ctx.wrap_socket(sock, server_hostname=domain) as ssock:
+            with socket.create_connection((fqdn, 443), timeout=4) as sock:
+                with ctx.wrap_socket(sock, server_hostname=fqdn) as ssock:
                     cert = ssock.getpeercert()
+        except Exception:
+            return self.disabled("TLS not available or handshake failed")
 
-            issuer = dict(x[0] for x in cert.get("issuer", []))
-            cn = issuer.get("commonName", "")
-            # For now, no scoring on issuer name, just info.
-            return self.success(0.0, f"TLS Issuer={cn}")
-        except Exception as e:  # noqa: BLE001
-            return self.error(f"TLS issuer error: {e}")
+        # Extract issuer CN safely
+        issuer = cert.get("issuer", [])
+        issuer_dict = {}
+        for part in issuer:
+            # issuer is a tuple of tuples
+            for key, value in part:
+                issuer_dict[key] = value
+
+        cn = issuer_dict.get("commonName", None)
+
+        if not cn:
+            return self.success(0.0, "Issuer CN missing or empty")
+
+        return self.success(0.0, f"Issuer CN = {cn}")

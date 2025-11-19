@@ -10,12 +10,11 @@ from app.features.utils.dns.dns_utils import resolve_dns
 
 class MXReputationFeature(Feature):
     """
-    Evaluate MX reputation using a combination of:
-
-    - MX hostnames matching known spammy providers
-    - MX IP abuse score (fully local heuristic, NOT external AbuseIPDB API)
-    - Outsourced MX (Google, Microsoft) considered low risk
-    - Suspicious MX names (random strings, numeric-heavy)
+    Evaluate MX reputation using local heuristics:
+    - Trusted providers → low risk
+    - Known spammy providers → high risk
+    - Random-looking hostnames (common in phishing infra)
+    - Private/reserved MX IPs → suspicious
     """
 
     name = "mx_reputation"
@@ -23,7 +22,6 @@ class MXReputationFeature(Feature):
     run_on: List[RunScope] = [RunScope.ROOT]
     category: Category = Category.DNS
 
-    # Known good providers = reduce risk
     GOOD_MX_PROVIDERS = [
         "google.com",
         "outlook.com",
@@ -33,7 +31,6 @@ class MXReputationFeature(Feature):
         "icloud.com",
     ]
 
-    # Known risky / spam-heavy MX providers
     BAD_MX_PROVIDERS = [
         "mailgun.org",
         "sendgrid.net",
@@ -46,16 +43,45 @@ class MXReputationFeature(Feature):
         "mailersend",
     ]
 
-    RANDOM_HOST_RE = re.compile(r"[a-z0-9]{10,}\.[a-z0-9.-]+", re.I)
-
     def __init__(self):
         self.max_score = get_weight(ConfigCat.DOMAIN, self.name, 0.05)
 
-    def run(self, domain: str):
+    # ---------------------------------------------------------
+    # Helper: suspicious random hostname
+    # ---------------------------------------------------------
+    def _is_random_host(self, mx: str) -> bool:
+        label = mx.split(".")[0]
 
-        # ---------------------------------------------------------
-        # 1. Resolve MX Records
-        # ---------------------------------------------------------
+        # Too short to be random
+        if len(label) < 10:
+            return False
+
+        # Avoid matching legitimate words
+        vowels = sum(1 for c in label if c in "aeiou")
+        if vowels == 0 and label.isalnum():
+            return True  # full consonant strings → often bot-generated
+
+        # High digit/hex ratio
+        digit_ratio = sum(c.isdigit() for c in label) / len(label)
+        if digit_ratio > 0.6:
+            return True
+
+        hex_chars = sum(c in "0123456789abcdef" for c in label.lower())
+        if hex_chars / len(label) > 0.8:
+            return True
+
+        return False
+
+    # ---------------------------------------------------------
+
+    def _is_suffix(self, mx: str, root: str) -> bool:
+        """Return True if mx is exactly root or ends with .root"""
+        return mx == root or mx.endswith("." + root)
+
+    # ---------------------------------------------------------
+
+    def run(self, domain: str, context: dict):
+        # 1. Resolve MX records
         try:
             answers = resolve_dns(domain, "MX")
         except Exception:
@@ -70,34 +96,31 @@ class MXReputationFeature(Feature):
             mx = text.split()[-1].rstrip(".")
             mx_hosts.append(mx)
 
-        # ---------------------------------------------------------
-        # 2. Evaluate each MX hostname
-        # ---------------------------------------------------------
+        # 2. Evaluate
         total_penalty = 0.0
         reasons = []
 
         for mx in mx_hosts:
-
             mx_lower = mx.lower()
 
-            # 2.1 Good (trusted) MX provider
-            if any(good in mx_lower for good in self.GOOD_MX_PROVIDERS):
+            # Trusted provider
+            if any(self._is_suffix(mx_lower, g) for g in self.GOOD_MX_PROVIDERS):
                 reasons.append(f"{mx} → trusted provider")
-                continue  # contributes 0 risk
+                continue
 
-            # 2.2 Bad / spammy MX provider
+            # Suspicious provider
             if any(bad in mx_lower for bad in self.BAD_MX_PROVIDERS):
                 total_penalty += self.max_score * 0.6
                 reasons.append(f"{mx} → suspicious provider")
                 continue
 
-            # 2.3 Random-looking hostnames
-            if self.RANDOM_HOST_RE.match(mx):
+            # Random-looking MX
+            if self._is_random_host(mx_lower):
                 total_penalty += self.max_score * 0.4
                 reasons.append(f"{mx} → random-looking hostname")
                 continue
 
-            # 2.4 Try resolving IP and apply simple local heuristic
+            # Resolve IP for heuristic analysis
             try:
                 ip = socket.gethostbyname(mx)
             except Exception:
@@ -105,17 +128,13 @@ class MXReputationFeature(Feature):
                 reasons.append(f"{mx} → failed IP resolution")
                 continue
 
-            # Heuristic: private/reserved IP = suspicious
-            if ip.startswith("10.") or ip.startswith("172.") or ip.startswith("192.168."):
+            if ip.startswith(("10.", "192.168.", "172.")):
                 total_penalty += self.max_score * 0.2
                 reasons.append(f"{mx} → private/reserved IP ({ip})")
 
-        # ---------------------------------------------------------
         # 3. Final scoring
-        # ---------------------------------------------------------
         if total_penalty == 0:
             return self.success(0.0, "; ".join(reasons) or "MX servers clean")
 
         score = min(total_penalty, self.max_score)
-
         return self.success(score, "; ".join(reasons))

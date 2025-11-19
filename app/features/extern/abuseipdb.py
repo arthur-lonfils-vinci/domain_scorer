@@ -15,12 +15,12 @@ class AbuseIPDBFeature(Feature):
     def __init__(self):
         self.max_score = get_weight(ConfigCat.VENDORS, self.name, 0.1)
 
-    def run(self, domain: str):
+    def run(self, target: str, context: dict):
         if not ABUSEIPDB_API_KEY:
             return self.disabled("abuseipdb - No API key provided")
 
         try:
-            ips = socket.gethostbyname_ex(domain)[2]
+            ips = socket.gethostbyname_ex(target)[2]
         except Exception:
             return self.disabled("abuseipdb - Domain not found")
 
@@ -47,4 +47,4 @@ class AbuseIPDBFeature(Feature):
             except Exception as e:  # noqa: BLE001
                 return self.disabled(f"AbuseIPDB {ip}: error {e}")
 
-        return self.success(score, ";".join(reasons))
+        return self.success(score, "; ".join(reasons))

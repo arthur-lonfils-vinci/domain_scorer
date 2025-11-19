@@ -11,6 +11,7 @@ from app.features.registry import FEATURES
 
 console = Console()
 
+
 # ----------------------------------------------------------
 # Table display for each layer
 # ----------------------------------------------------------
@@ -105,6 +106,12 @@ def main():
         default="auto"
     )
 
+    parser.add_argument(
+        "-H", "--headers",
+        help="Optional email header file",
+        type=str
+    )
+
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--explain", action="store_true")
 
@@ -113,9 +120,9 @@ def main():
     if args.type == "domain":
         result = analyze_domain(args.target)
     elif args.type == "email":
-        result = analyze_email(args.target)
+        result = analyze_email(args.target, headers_path=args.headers)
     else:
-        result = analyze_email(args.target) if "@" in args.target else analyze_domain(args.target)
+        result = analyze_email(args.target, headers_path=args.headers) if "@" in args.target else analyze_domain(args.target)
 
     if args.json:
         console.print_json(json.dumps(result, indent=2))

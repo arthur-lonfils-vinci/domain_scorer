@@ -8,32 +8,18 @@ from app.features.types import RunScope
 # INTERNAL FUNCTION FOR ONE FEATURE SET
 # ============================================================
 
-def _run_feature_set(
-        target_value: str,
-        feature_set: Dict[str, Feature]
-):
-    """
-    Run a list of features on one target.
-    Returns: (normalized_score, scores_dict, reasons_dict)
-    """
-    scores: Dict[str, float] = {}
-    reasons: Dict[str, str] = {}
-    weights: Dict[str, float] = {}
+def _run_feature_set(target_value: str, feature_set: Dict[str, Feature], context: dict):
+    scores, reasons, weights = {}, {}, {}
 
     for name, feature in feature_set.items():
         try:
-            result = feature.run(target_value)
+            result = feature.run(target_value, context=context)
         except Exception as e:
-            # Use "disabled" → does NOT increase risk
             result = feature.disabled(f"{name} crashed: {e}")
 
         score = result.get("score")
-        if score is None:
-            scores[name] = 0.0
-        else:
-            scores[name] = float(score)
-
-        reasons[name] = str(result.get("reason", ""))
+        scores[name] = 0.0 if score is None else float(score)
+        reasons[name] = result.get("reason", "")
         weights[name] = getattr(feature, "max_score", 0.0)
 
     max_total = sum(f.max_score for f in feature_set.values() if f.max_score) or 1.0
@@ -46,7 +32,7 @@ def _run_feature_set(
 # DOMAIN: generate FQDN + ROOT layers
 # ============================================================
 
-def score_domain_layers(fqdn: str, root: str):
+def score_domain_layers(fqdn: str, root: str, context: dict):
     fqdn_features = {
         name: f for name, f in DOMAIN_FEATURES.items()
         if "fqdn" in f.run_on
@@ -57,8 +43,8 @@ def score_domain_layers(fqdn: str, root: str):
         if "root" in f.run_on
     }
 
-    fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights = _run_feature_set(fqdn, fqdn_features)
-    root_norm, root_scores, root_reasons, root_weights = _run_feature_set(root, root_features)
+    fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights = _run_feature_set(fqdn, fqdn_features, context)
+    root_norm, root_scores, root_reasons, root_weights = _run_feature_set(root, root_features, context)
 
     return {
         "fqdn": {
@@ -82,7 +68,7 @@ def score_domain_layers(fqdn: str, root: str):
 # EMAIL: 3-layer scoring
 # ============================================================
 
-def score_email_only(fqdn: str, root: str, user: str):
+def score_email_only(fqdn: str, root: str, user: str, context: dict):
     """
     Email-only feature scoring.
     """
@@ -100,9 +86,9 @@ def score_email_only(fqdn: str, root: str, user: str):
                 feature_buckets[scope][name] = feature
 
     # Run scoring
-    user_norm, user_scores, user_reasons, user_weights = _run_feature_set(user, feature_buckets[RunScope.USER])
-    fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights= _run_feature_set(fqdn, feature_buckets[RunScope.FQDN])
-    root_norm, root_scores, root_reasons, root_weights = _run_feature_set(root, feature_buckets[RunScope.ROOT])
+    user_norm, user_scores, user_reasons, user_weights = _run_feature_set(user, feature_buckets[RunScope.USER], context)
+    fqdn_norm, fqdn_scores, fqdn_reasons, fqdn_weights = _run_feature_set(fqdn, feature_buckets[RunScope.FQDN], context)
+    root_norm, root_scores, root_reasons, root_weights = _run_feature_set(root, feature_buckets[RunScope.ROOT], context)
 
     # Merge raw scores
     scores = {}

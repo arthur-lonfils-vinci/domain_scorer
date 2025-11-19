@@ -1,7 +1,8 @@
 import datetime
-from typing import List
+from typing import List, Tuple, Optional
 
 import requests
+
 from app.config import REQUEST_TIMEOUT, get_weight
 from app.features.base import Feature
 from app.cache import get_cache, set_cache
@@ -12,20 +13,22 @@ class DomainAgeFeature(Feature):
     name = "domain_age"
     target_type: List[TargetType] = [TargetType.DOMAIN]
     run_on: List[RunScope] = [RunScope.ROOT]
-    category: Category = Category.DNS
+    category: Category = Category.DNS   # or Category.WHOIS, if you introduce one
 
     def __init__(self):
         self.max_score = get_weight(ConfigCat.DOMAIN, self.name, 0.1)
 
-    def rdap_lookup(self, domain: str):
+    # ------------------------------------------------------------------
+    # RDAP LOOKUP
+    # ------------------------------------------------------------------
+    def rdap_lookup(self, domain: str) -> Tuple[Optional[datetime.datetime], Optional[str]]:
         """
-        RDAP lookup with automatic TLD-based routing.
-        - .be domains → rdap.nic.brussels
-        - other domains → rdap.net (auto RDAP delegation)
+        Use RDAP when possible.
+        Returns: (creation_date | None, error_message | None)
         """
 
         try:
-            # Select endpoint depending on suffix
+            # .be → custom RDAP server
             if domain.endswith(".be"):
                 url = f"https://rdap.nic.brussels/domain/{domain}"
             else:
@@ -40,78 +43,90 @@ class DomainAgeFeature(Feature):
                 return None, f"RDAP HTTP {resp.status_code}"
 
             data = resp.json()
-
-            # Find registration (creation) event
             events = data.get("events", [])
-            for e in events:
-                if e.get("eventAction") == "registration":
-                    date_str = e.get("eventDate")
-                    # Example: "2015-03-26T10:44:09Z"
-                    return datetime.datetime.fromisoformat(date_str.replace("Z", "")), None
 
-            return None, "RDAP: registration event missing"
+            for event in events:
+                if event.get("eventAction") == "registration":
+                    # Example format: "2015-03-26T10:44:09Z"
+                    raw = event.get("eventDate")
+                    if not raw:
+                        continue
+
+                    return datetime.datetime.fromisoformat(
+                        raw.replace("Z", "")
+                    ), None
+
+            return None, "RDAP registration event missing"
 
         except Exception as e:  # noqa: BLE001
             return None, f"RDAP error: {e}"
 
+    # ------------------------------------------------------------------
+    # WHOIS FALLBACK
+    # ------------------------------------------------------------------
     def fallback_whois(self, domain: str):
-        """Fallback to python-whois (best effort)."""
+        """Fallback whois check using python-whois."""
         import whois
 
         try:
-            w = whois.whois(domain)
-            d = w.creation_date
+            data = whois.whois(domain)
+            created = data.creation_date
 
-            if isinstance(d, list):
-                d = d[0]
+            if isinstance(created, list):
+                created = created[0]
 
-            return d, None
+            return created, None
 
         except Exception as e:  # noqa: BLE001
             return None, f"WHOIS error: {e}"
 
-    def run(self, domain: str):
+    # ------------------------------------------------------------------
+    # MAIN RUN
+    # ------------------------------------------------------------------
+    def run(self, target: str, context: dict):
+        # Always use the root domain for RDAP/WHOIS
+        domain = context.get("root", target)
+
         cache_key = f"whois:{domain}"
         if cached := get_cache(cache_key):
             return cached
 
-        # ===========================
-        # 1) Try RDAP (preferred)
-        # ===========================
+        # ------------------------------------------------------
+        # 1. Try RDAP first
+        # ------------------------------------------------------
         created, rdap_err = self.rdap_lookup(domain)
 
-        # RDAP says domain does not exist → REAL security warning
         if rdap_err == "NXDOMAIN":
+            # This is a *real* security indicator
             result = self.error("Domain does not exist (NXDOMAIN)")
             set_cache(cache_key, result)
             return result
 
-        # ===========================
-        # 2) RDAP returned no creation date → try WHOIS
-        # ===========================
+        # ------------------------------------------------------
+        # 2. If RDAP failed → fallback WHOIS
+        # ------------------------------------------------------
         if created is None:
             created, whois_err = self.fallback_whois(domain)
 
             if created is None:
-                # Both failed → this is a SENSOR FAILURE (not suspicious)
+                # SENSOR failure → not suspicious, don't penalize
                 result = self.disabled(
-                    f"WHOIS unavailable (RDAP error: {rdap_err}, WHOIS error: {whois_err})"
+                    f"WHOIS unavailable (RDAP: {rdap_err}, WHOIS: {whois_err})"
                 )
                 set_cache(cache_key, result)
                 return result
 
-        # ===========================
-        # 3) Compute score
-        # ===========================
-
-        # Normalize timezone
+        # ------------------------------------------------------
+        # 3. Normalize timezone and compute age
+        # ------------------------------------------------------
         if created.tzinfo:
             created = created.astimezone(datetime.timezone.utc).replace(tzinfo=None)
 
         age_days = (datetime.datetime.utcnow() - created).days
 
+        # Very young domains (< 7 days) are extremely suspicious
         score = self.max_score if age_days < 7 else 0.0
-        result = self.success(score, f"Domain age={age_days} days")
 
+        result = self.success(score, f"Domain age = {age_days} days")
         set_cache(cache_key, result)
         return result

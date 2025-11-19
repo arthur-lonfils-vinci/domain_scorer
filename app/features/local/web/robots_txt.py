@@ -15,11 +15,34 @@ class RobotsTxtFeature(Feature):
     def __init__(self):
         self.max_score = get_weight(ConfigCat.WEB, self.name, 0.05)
 
-    def run(self, domain: str):
-        try:
-            resp = requests.get(f"https://{domain}/robots.txt", timeout=REQUEST_TIMEOUT)
-            score = self.max_score if resp.status_code != 200 else 0.0
-            reason = "robots.txt missing" if score else "robots.txt found"
-            return self.success(score, reason)
-        except Exception as e:  # noqa: BLE001
-            return self.error(f"robots.txt error: {e}")
+    # Try HTTPS → HTTP fallback
+    def _fetch(self, fqdn: str):
+        urls = [
+            f"https://{fqdn}/robots.txt",
+            f"http://{fqdn}/robots.txt",
+        ]
+        last_exc = None
+        for url in urls:
+            try:
+                r = requests.get(url, timeout=REQUEST_TIMEOUT)
+                return r, None
+            except Exception as e:
+                last_exc = e
+        return None, last_exc
+
+    def run(self, target: str, context: dict):
+        fqdn = context.get("fqdn", target)
+
+        resp, error = self._fetch(fqdn)
+
+        # Network failure → do NOT mark as suspicious
+        if resp is None:
+            return self.disabled(f"robots.txt unreachable ({error})")
+
+        # HTTP OK → file exists → low risk
+        if resp.status_code == 200:
+            return self.success(0.0, "robots.txt found")
+
+        # robots.txt missing → tiny heuristic signal
+        score = self.max_score * 0.3
+        return self.success(score, f"robots.txt missing (HTTP {resp.status_code})")
